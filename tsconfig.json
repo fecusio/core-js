@@ -1,19 +1,27 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "module": "commonjs",
-    "lib": ["ES2020"],
-    "declaration": true,
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "moduleResolution": "node",
-    "resolveJsonModule": true,
+    "target": "es5",
+    "module": "es6",
+    "lib": ["esnext", "dom"],
+    "emitDeclarationOnly": true,
+    "declarationDir": "./dist",
+    "removeComments": false,
+    "verbatimModuleSyntax": true,
+    "inlineSourceMap": true,
+    "inlineSources": true,
     "isolatedModules": true,
-    "noEmit": false
+    "downlevelIteration": true,
+    "strict": true,
+    // @see https://www.typescriptlang.org/tsconfig#noUncheckedIndexedAccess
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "moduleResolution": "node",
+    "rootDir": "./src",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true
   },
   "include": [
     "src/**/*"

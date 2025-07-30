@@ -1,4 +1,4 @@
-import axios, { AxiosInstance } from 'axios';
+import axios, { type AxiosInstance } from 'axios';
 
 type EvaluationResponse = {
     data: {
@@ -20,7 +20,7 @@ interface Options {
     timeout?: number;
 }
 
-class Evaluation {
+export class Evaluation {
     private response: EvaluationResponse;
 
     constructor(response: EvaluationResponse) {
@@ -28,7 +28,14 @@ class Evaluation {
     }
 
     public isFeatureEnabled(flag: string): boolean {
-        return this.response.data[flag].enabled ?? false;
+        if (!flag || typeof flag !== 'string') {
+            return false;
+        }
+        return this.response.data[flag]?.enabled ?? false;
+    }
+
+    public getAllFlags(): EvaluationResponse['data'] {
+        return { ...this.response.data };
     }
 }
 
@@ -40,6 +47,10 @@ export class FecusioCore {
     private cache: Cache = {};
 
     constructor(options: Options) {
+        if (!options.environmentKey || typeof options.environmentKey !== 'string') {
+            throw new Error('environmentKey is required and must be a string');
+        }
+
         this.environmentKey = options.environmentKey;
         this.defaultFlags = options.defaultFlags || {};
         this.defaultIdentitiesContext = options.defaultIdentitiesContext;
@@ -78,16 +89,28 @@ export class FecusioCore {
         }
 
         try {
-            const response = await this.api.post<EvaluationResponse>('/evaluate', { identities: identitiesContext });
+            const response = await this.api.post<EvaluationResponse>('/evaluate', { 
+                identities: identitiesContext 
+            });
             const evaluation = new Evaluation(response.data);
             this.cache[cacheKey] = evaluation;
             return evaluation;
-        } catch {
+        } catch (error) {
+            // Log error in development
+            if (process.env.NODE_ENV === 'development') {
+                console.warn('Fecusio Core API request failed, using default flags:', error);
+            }
+            
+            // Return evaluation with default flags
             return new Evaluation({ data: this.defaultFlags || {} });
         }
     }
-}
 
-// Export types for external use
-export type { Options, EvaluationResponse };
-export { Evaluation }; 
+    public clearCache(): void {
+        this.cache = {};
+    }
+
+    public getCacheSize(): number {
+        return Object.keys(this.cache).length;
+    }
+}
