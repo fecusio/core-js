@@ -15,7 +15,7 @@ type Cache = {
 interface Options {
     environmentKey: string;
     defaultFlags?: EvaluationResponse['data'];
-    defaultIdentitiesContext?: string[];
+    defaultIdentities?: string[];
     baseURL?: string;
     timeout?: number;
 }
@@ -28,9 +28,6 @@ export class Evaluation {
     }
 
     public isFeatureEnabled(flag: string): boolean {
-        if (!flag || typeof flag !== 'string') {
-            return false;
-        }
         return this.response.data[flag]?.enabled ?? false;
     }
 
@@ -43,17 +40,13 @@ export class FecusioCore {
     private api: AxiosInstance;
     private environmentKey: string;
     private defaultFlags: EvaluationResponse['data'];
-    private defaultIdentitiesContext?: string[];
+    private defaultIdentities?: string[];
     private cache: Cache = {};
 
     constructor(options: Options) {
-        if (!options.environmentKey || typeof options.environmentKey !== 'string') {
-            throw new Error('environmentKey is required and must be a string');
-        }
-
         this.environmentKey = options.environmentKey;
         this.defaultFlags = options.defaultFlags || {};
-        this.defaultIdentitiesContext = options.defaultIdentitiesContext;
+        this.defaultIdentities = options.defaultIdentities;
 
         this.api = axios.create({
             baseURL: options.baseURL || 'https://core.fecusio.com/v1/',
@@ -66,8 +59,8 @@ export class FecusioCore {
         });
     }
 
-    public setDefaultIdentitiesContext(defaultIdentitiesContext: string[] | undefined): void {
-        this.defaultIdentitiesContext = defaultIdentitiesContext;
+    public setDefaultIdentities(identities: string[] | undefined): void {
+        this.defaultIdentities = identities;
     }
 
     private getCacheKey(identities: string[] | undefined): string {
@@ -77,12 +70,16 @@ export class FecusioCore {
         return identities.join(',');
     }
 
-    public async evaluate(identitiesContext?: string[], fresh: boolean = false): Promise<Evaluation> {
-        if (identitiesContext === undefined) {
-            identitiesContext = this.defaultIdentitiesContext;
+    public clearCache(): void {
+        this.cache = {};
+    }
+
+    public async evaluate(identities?: string[], fresh: boolean = false): Promise<Evaluation> {
+        if (identities === undefined) {
+            identities = this.defaultIdentities;
         }
 
-        const cacheKey = this.getCacheKey(identitiesContext);
+        const cacheKey = this.getCacheKey(identities);
 
         if (!fresh && this.cache[cacheKey]) {
             return this.cache[cacheKey];
@@ -90,27 +87,18 @@ export class FecusioCore {
 
         try {
             const response = await this.api.post<EvaluationResponse>('/evaluate', { 
-                identities: identitiesContext 
+                identities: identities
             });
+
             const evaluation = new Evaluation(response.data);
+
             this.cache[cacheKey] = evaluation;
+
             return evaluation;
         } catch (error) {
-            // Log error in development
-            if (process.env.NODE_ENV === 'development') {
-                console.warn('Fecusio Core API request failed, using default flags:', error);
-            }
-            
-            // Return evaluation with default flags
+            console.error('Fecusio Core API request failed, using default flags', error);
+
             return new Evaluation({ data: this.defaultFlags || {} });
         }
-    }
-
-    public clearCache(): void {
-        this.cache = {};
-    }
-
-    public getCacheSize(): number {
-        return Object.keys(this.cache).length;
     }
 }
