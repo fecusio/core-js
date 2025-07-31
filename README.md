@@ -35,14 +35,14 @@ if (evaluation.isFeatureEnabled('my_feature')) {
 Options:
 - `environmentKey` (required): Your Fecusio environment key
 - `defaultFlags`: Fallback flags when API is unavailable
-- `defaultIdentitiesContext`: Array of identity IDs
+- `defaultIdentities`: Array of identity IDs
 - `baseURL`: Custom API endpoint (default: https://core.fecusio.com/v1/)
 - `timeout`: Request timeout in ms (default: 5000)
 
-### `evaluate(identitiesContext?, fresh?)`
+### `evaluate(identities?, fresh?)`
 
 Evaluates feature flags, returns an Evaluation object:
-- `identitiesContext`: Optional array of user identities
+- `identities`: Optional array of user identities
 - `fresh`: Force a fresh evaluation (bypass cache)
 
 ### `clearCache()` and `getCacheSize()`
