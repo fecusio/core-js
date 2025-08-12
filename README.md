@@ -1,11 +1,11 @@
-# @fecusio/core
+# @fecusio/core-js
 
 A lightweight JavaScript/TypeScript SDK for Fecusio Core service.
 
 ## Installation
 
 ```bash
-npm install @fecusio/core
+npm install @fecusio/core-js
 ```
 
 ## Usage

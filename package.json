@@ -1,5 +1,5 @@
 {
-  "name": "@fecusio/core",
+  "name": "@fecusio/core-js",
   "version": "1.0.0",
   "description": "Fecusio Core API SDK",
   "type": "module",
@@ -53,12 +53,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/fecusio/core.git"
+    "url": "git+https://github.com/fecusio/core-js.git"
   },
   "bugs": {
-    "url": "https://github.com/fecusio/core/issues"
+    "url": "https://github.com/fecusio/core-js/issues"
   },
-  "homepage": "https://github.com/fecusio/core#readme",
+  "homepage": "https://github.com/fecusio/core-js#readme",
   "np": {
     "yarn": false
   }
