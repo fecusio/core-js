@@ -1,3 +1,5 @@
+<p align="center"><a href="https://fecusio.com" target="_blank"><img src="https://fecusio.com/logo.png" width="400"></a></p>
+
 # @fecusio/core-js
 
 A lightweight JavaScript/TypeScript SDK for Fecusio Core service.
@@ -45,9 +47,9 @@ Evaluates feature flags, returns an Evaluation object:
 - `identities`: Optional array of user identities
 - `fresh`: Force a fresh evaluation (bypass cache)
 
-### `clearCache()` and `getCacheSize()`
+### `clearCache()`
 
-Methods to manage the evaluation cache.
+Method to manage the evaluation cache.
 
 ## License
 
