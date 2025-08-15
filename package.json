@@ -60,6 +60,7 @@
   },
   "homepage": "https://github.com/fecusio/core-js#readme",
   "np": {
-    "yarn": false
+    "yarn": false,
+    "tests": false
   }
 } 
