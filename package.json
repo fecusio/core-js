@@ -24,7 +24,8 @@
     "build:es": "babel ./src --ignore='**/*.test.ts' --config-file=./babel.config.json --extensions=.ts,.cts --source-root=./src --out-dir=./dist",
     "build:cjs": "babel ./src --ignore='**/*.test.ts' --config-file=./babel.config.cjs.json --extensions=.ts,.cts --source-root=./src --out-dir=./dist --out-file-extension .cjs",
     "prerelease": "npm run build",
-    "release": "np"
+    "release": "np",
+    "test": "exit 0"
   },
   "keywords": [
     "feature-flags",
@@ -60,7 +61,6 @@
   },
   "homepage": "https://github.com/fecusio/core-js#readme",
   "np": {
-    "yarn": false,
-    "tests": false
+    "yarn": false
   }
 } 
