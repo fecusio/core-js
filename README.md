@@ -4,6 +4,8 @@
 
 A lightweight JavaScript/TypeScript SDK for Fecusio Core service.
 
+You can find the Core API documentation [here](https://fecusio.com/docs/core/).
+
 ## Installation
 
 ```bash
