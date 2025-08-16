@@ -12,10 +12,15 @@ type Cache = {
     [key: string]: Evaluation;
 };
 
+interface IdentityReference {
+    type: string;
+    key: string;
+}
+
 interface Options {
     environmentKey: string;
     defaultFlags?: EvaluationResponse['data'];
-    defaultIdentities?: string[];
+    defaultIdentities?: (string | IdentityReference)[];
     baseURL?: string;
     timeout?: number;
 }
@@ -40,7 +45,7 @@ export class FecusioCore {
     private api: AxiosInstance;
     private environmentKey: string;
     private defaultFlags: EvaluationResponse['data'];
-    private defaultIdentities?: string[];
+    private defaultIdentities?: (string | IdentityReference)[];
     private cache: Cache = {};
 
     constructor(options: Options) {
@@ -59,22 +64,25 @@ export class FecusioCore {
         });
     }
 
-    public setDefaultIdentities(identities: string[] | undefined): void {
+    public setDefaultIdentities(identities: (string | IdentityReference)[] | undefined): void {
         this.defaultIdentities = identities;
     }
 
-    private getCacheKey(identities: string[] | undefined): string {
+    private getCacheKey(identities: (string | IdentityReference)[] | undefined): string {
         if (identities === undefined) {
             return 'default';
         }
-        return identities.join(',');
+        return identities.map(identity =>
+            typeof identity === 'string' ? identity : `${identity.type}-${identity.key}`
+        ).join(',');
     }
+
 
     public clearCache(): void {
         this.cache = {};
     }
 
-    public async evaluate(identities?: string[], fresh: boolean = false): Promise<Evaluation> {
+    public async evaluate(identities?: (string | IdentityReference)[], fresh: boolean = false): Promise<Evaluation> {
         if (identities === undefined) {
             identities = this.defaultIdentities;
         }
