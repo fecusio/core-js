@@ -2,9 +2,11 @@ import axios, { type AxiosInstance } from 'axios';
 
 type EvaluationResponse = {
     data: {
-        [flag: string]: {
-            enabled: boolean;
-        };
+        flags: {
+            [flag: string]: {
+                enabled: boolean;
+            };
+        }
     };
 };
 
@@ -19,7 +21,7 @@ interface IdentityReference {
 
 interface Options {
     environmentKey: string;
-    defaultFlags?: EvaluationResponse['data'];
+    defaultFlags?: EvaluationResponse['data']['flags'];
     defaultIdentities?: (string | IdentityReference)[];
     baseURL?: string;
     timeout?: number;
@@ -33,18 +35,18 @@ export class Evaluation {
     }
 
     public isFeatureEnabled(flag: string): boolean {
-        return this.response.data[flag]?.enabled ?? false;
+        return this.response.data.flags[flag]?.enabled ?? false;
     }
 
-    public getAllFlags(): EvaluationResponse['data'] {
-        return { ...this.response.data };
+    public getAllFlags(): EvaluationResponse['data']['flags'] {
+        return { ...this.response.data.flags };
     }
 }
 
 export class FecusioCore {
     private api: AxiosInstance;
     private environmentKey: string;
-    private defaultFlags: EvaluationResponse['data'];
+    private defaultFlags: EvaluationResponse['data']['flags'];
     private defaultIdentities?: (string | IdentityReference)[];
     private cache: Cache = {};
 
@@ -106,7 +108,11 @@ export class FecusioCore {
         } catch (error) {
             console.error('Fecusio Core API request failed, using default flags', error);
 
-            return new Evaluation({ data: this.defaultFlags || {} });
+            return new Evaluation({
+                data: {
+                    flags: this.defaultFlags || {}
+                }
+            });
         }
     }
 }
