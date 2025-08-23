@@ -2,6 +2,8 @@
 
 # @fecusio/core-js
 
+[![Lint](https://github.com/fecusio/core-js/actions/workflows/lint.yml/badge.svg)](https://github.com/fecusio/core-js/actions/workflows/lint.yml)
+
 A lightweight JavaScript/TypeScript SDK for Fecusio Core service.
 
 You can find the Core API documentation [here](https://fecusio.com/docs/core/).
