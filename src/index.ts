@@ -1,21 +1,21 @@
-import axios, { type AxiosInstance } from "axios";
+import axios, { type AxiosInstance } from 'axios';
 
 interface ConfigEvaluationSucceededEvent {
-  type: "config.evaluation.succeeded";
+  type: 'config.evaluation.succeeded';
   data: {
-    response: EvaluationResponse;
+    config: EvaluationResponse['data'];
   };
 }
 
 interface ConfigEvaluationFailedEvent {
-  type: "config.evaluation.failed";
+  type: 'config.evaluation.failed';
   data: {
     error: unknown;
   };
 }
 
 interface FlagEvaluationSucceededEvent {
-  type: "flag.evaluation.succeeded";
+  type: 'flag.evaluation.succeeded';
   data: {
     environment_id: string;
     flag_key: string;
@@ -38,10 +38,20 @@ type EvaluationResponse = {
       };
     };
   };
-  meta?: {
+  meta: {
     organization_id: string;
     workspace_id: string;
     environment_id: string;
+  };
+};
+
+type DefaultEvaluationResponse = {
+  data: {
+    flags: {
+      [flag: string]: {
+        enabled: boolean;
+      };
+    };
   };
 };
 
@@ -56,7 +66,7 @@ interface IdentityReference {
 
 interface Options {
   environmentKey: string;
-  defaultFlags?: EvaluationResponse["data"]["flags"];
+  defaultFlags?: EvaluationResponse['data']['flags'];
   defaultIdentities?: (string | IdentityReference)[];
   baseURL?: string;
   timeout?: number;
@@ -64,11 +74,11 @@ interface Options {
 }
 
 export class FecusioCoreEvaluation {
-  private response: EvaluationResponse;
+  private response: EvaluationResponse | DefaultEvaluationResponse;
   private eventHandler?: FecusioCoreEventHandler;
 
   constructor(
-    response: EvaluationResponse,
+    response: EvaluationResponse | DefaultEvaluationResponse,
     eventHandler?: FecusioCoreEventHandler,
   ) {
     this.response = response;
@@ -78,9 +88,13 @@ export class FecusioCoreEvaluation {
   public isFeatureEnabled(flag: string): boolean {
     const isEnabled = this.response.data.flags[flag]?.enabled;
 
-    if (this.eventHandler && isEnabled !== undefined && this.response.meta) {
+    if (
+      this.eventHandler &&
+      isEnabled !== undefined &&
+      'meta' in this.response
+    ) {
       this.eventHandler({
-        type: "flag.evaluation.succeeded",
+        type: 'flag.evaluation.succeeded',
         data: {
           environment_id: this.response.meta.environment_id,
           flag_key: flag,
@@ -92,7 +106,7 @@ export class FecusioCoreEvaluation {
     return isEnabled || false;
   }
 
-  public getAllFlags(): EvaluationResponse["data"]["flags"] {
+  public getAllFlags(): EvaluationResponse['data']['flags'] {
     return { ...this.response.data.flags };
   }
 }
@@ -100,7 +114,7 @@ export class FecusioCoreEvaluation {
 export class FecusioCore {
   private api: AxiosInstance;
   private environmentKey: string;
-  private defaultFlags: EvaluationResponse["data"]["flags"];
+  private defaultFlags: EvaluationResponse['data']['flags'];
   private defaultIdentities?: (string | IdentityReference)[];
   private cache: Cache = {};
   private eventHandlers: FecusioCoreEventHandler[] = [];
@@ -115,12 +129,12 @@ export class FecusioCore {
     this.defaultIdentities = options.defaultIdentities;
 
     this.api = axios.create({
-      baseURL: options.baseURL || "https://core.fecusio.com/v1/",
+      baseURL: options.baseURL || 'https://core.fecusio.com/v1/',
       timeout: options.timeout || 5000,
       headers: {
-        "X-Environment-Key": this.environmentKey,
-        "Content-Type": "application/json",
-        Accept: "application/json",
+        'X-Environment-Key': this.environmentKey,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
       },
     });
 
@@ -143,15 +157,15 @@ export class FecusioCore {
     identities: (string | IdentityReference)[] | undefined,
   ): string {
     if (identities === undefined) {
-      return "default";
+      return 'default';
     }
     return identities
       .map((identity) =>
-        typeof identity === "string"
+        typeof identity === 'string'
           ? identity
           : `${identity.type}-${identity.key}`,
       )
-      .join(",");
+      .join(',');
   }
 
   public clearCache(): void {
@@ -169,13 +183,13 @@ export class FecusioCore {
       try {
         handler(event);
       } catch (error) {
-        console.error("Error in event handler:", error);
+        console.error('Error in event handler:', error);
       }
     }
   }
 
   private trackFlagEvaluation(event: FecusioCoreEvent): void {
-    if (event.type === "flag.evaluation.succeeded") {
+    if (event.type === 'flag.evaluation.succeeded') {
       // Add the event data to the queue
       this.trackingQueue.push(event);
 
@@ -200,11 +214,11 @@ export class FecusioCore {
     this.trackingTimeout = null;
 
     this.api
-      .post("/evaluations/track", {
+      .post('/evaluations/track', {
         events: eventsToSend,
       })
       .catch((error) => {
-        console.error("Error tracking flag evaluations batch:", error);
+        console.error('Error tracking flag evaluations batch:', error);
       });
   }
 
@@ -223,7 +237,7 @@ export class FecusioCore {
     }
 
     try {
-      const response = await this.api.post<EvaluationResponse>("/evaluate", {
+      const response = await this.api.post<EvaluationResponse>('/evaluate', {
         identities: identities,
       });
 
@@ -235,16 +249,16 @@ export class FecusioCore {
       this.cache[cacheKey] = evaluation;
 
       this.notifyEventHandlers({
-        type: "config.evaluation.succeeded" as const,
+        type: 'config.evaluation.succeeded' as const,
         data: {
-          response: response.data,
+          config: response.data.data,
         },
       });
 
       return evaluation;
     } catch (error) {
       this.notifyEventHandlers({
-        type: "config.evaluation.failed" as const,
+        type: 'config.evaluation.failed' as const,
         data: { error },
       });
 
