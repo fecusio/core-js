@@ -27,7 +27,8 @@
     "release": "np",
     "test": "exit 0",
     "format": "prettier --write src/",
-    "format:check": "prettier --check src/"
+    "format:check": "prettier --check src/",
+    "lint": "eslint src/ --fix"
   },
   "keywords": [
     "feature-flags",
@@ -50,6 +51,10 @@
     "babel-plugin-add-import-extension": "^1.6.0",
     "babel-plugin-transform-inline-environment-variables": "^0.4.4",
     "prettier": "^3.4.2",
+    "eslint": "^9.17.0",
+    "eslint-config-prettier": "^10.0.1",
+    "@eslint/js": "^9.19.0",
+    "typescript-eslint": "^8.23.0",
     "np": "^10.2.0"
   },
   "dependencies": {
