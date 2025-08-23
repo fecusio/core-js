@@ -1,21 +1,21 @@
 import axios, { type AxiosInstance } from "axios";
 
-interface ConfigEvaluationSucceededEvent {
-  type: "config.evaluation.succeeded";
+interface EvaluationRetrievedEvent {
+  type: "evaluation.retrieved";
   data: {
     config: EvaluationResponse["data"];
   };
 }
 
-interface ConfigEvaluationFailedEvent {
-  type: "config.evaluation.failed";
+interface EvaluationFailed {
+  type: "evaluation.failed";
   data: {
     error: unknown;
   };
 }
 
-interface FlagEvaluationSucceededEvent {
-  type: "flag.evaluation.succeeded";
+interface FlagEvaluatedEvent {
+  type: "flag.evaluated";
   data: {
     flag_tracking_id: string;
     enabled: boolean;
@@ -23,9 +23,9 @@ interface FlagEvaluationSucceededEvent {
 }
 
 export type FecusioCoreEvent =
-  | ConfigEvaluationSucceededEvent
-  | ConfigEvaluationFailedEvent
-  | FlagEvaluationSucceededEvent;
+  | EvaluationRetrievedEvent
+  | EvaluationFailed
+  | FlagEvaluatedEvent;
 
 export type FecusioCoreEventHandler = (event: FecusioCoreEvent) => void;
 
@@ -88,7 +88,7 @@ export class FecusioCoreEvaluation {
 
     if (this.eventHandler && responseFlag && "tracking_id" in responseFlag) {
       this.eventHandler({
-        type: "flag.evaluation.succeeded",
+        type: "flag.evaluated",
         data: {
           flag_tracking_id: responseFlag.tracking_id,
           enabled: responseFlag.enabled,
@@ -108,7 +108,7 @@ export class FecusioCore {
   private cache: Cache = {};
   private eventHandlers: FecusioCoreEventHandler[] = [];
 
-  private trackingQueue: FlagEvaluationSucceededEvent[] = [];
+  private trackingQueue: FlagEvaluatedEvent[] = [];
   private trackingTimeout: NodeJS.Timeout | null = null;
   private readonly TRACKING_DEBOUNCE_MS = 2000;
 
@@ -178,7 +178,7 @@ export class FecusioCore {
   }
 
   private trackFlagEvaluation(event: FecusioCoreEvent): void {
-    if (event.type === "flag.evaluation.succeeded") {
+    if (event.type === "flag.evaluated") {
       // Add the event data to the queue
       this.trackingQueue.push(event);
 
@@ -238,7 +238,7 @@ export class FecusioCore {
       this.cache[cacheKey] = evaluation;
 
       this.notifyEventHandlers({
-        type: "config.evaluation.succeeded" as const,
+        type: "evaluation.retrieved" as const,
         data: {
           config: response.data.data,
         },
@@ -247,7 +247,7 @@ export class FecusioCore {
       return evaluation;
     } catch (error) {
       this.notifyEventHandlers({
-        type: "config.evaluation.failed" as const,
+        type: "evaluation.failed" as const,
         data: { error },
       });
 
