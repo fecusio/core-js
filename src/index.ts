@@ -17,7 +17,6 @@ interface ConfigEvaluationFailedEvent {
 interface FlagEvaluationSucceededEvent {
   type: "flag.evaluation.succeeded";
   data: {
-    environment_tracking_id: string;
     flag_tracking_id: string;
     enabled: boolean;
   };
@@ -85,28 +84,19 @@ export class FecusioCoreEvaluation {
   }
 
   public isFeatureEnabled(flag: string): boolean {
-    const isEnabled = this.response.data.flags[flag]?.enabled;
+    const responseFlag = this.response.data.flags[flag];
 
-    if (
-      this.eventHandler &&
-      isEnabled !== undefined &&
-      "environment_tracking_id" in this.response.data
-    ) {
+    if (this.eventHandler && responseFlag && "tracking_id" in responseFlag) {
       this.eventHandler({
         type: "flag.evaluation.succeeded",
         data: {
-          environment_tracking_id: this.response.data.environment_tracking_id,
-          flag_tracking_id: flag,
-          enabled: isEnabled,
+          flag_tracking_id: responseFlag.tracking_id,
+          enabled: responseFlag.enabled,
         },
       });
     }
 
-    return isEnabled || false;
-  }
-
-  public getAllFlags(): DefaultEvaluationResponse["data"]["flags"] {
-    return { ...this.response.data.flags };
+    return responseFlag?.enabled || false;
   }
 }
 
