@@ -25,7 +25,9 @@
     "build:cjs": "babel ./src --ignore='**/*.test.ts' --config-file=./babel.config.cjs.json --extensions=.ts,.cts --source-root=./src --out-dir=./dist --out-file-extension .cjs",
     "prerelease": "npm run build",
     "release": "np",
-    "test": "exit 0"
+    "test": "exit 0",
+    "format": "prettier --write src/",
+    "format:check": "prettier --check src/"
   },
   "keywords": [
     "feature-flags",
@@ -47,6 +49,7 @@
     "@babel/preset-typescript": "^7.18.6",
     "babel-plugin-add-import-extension": "^1.6.0",
     "babel-plugin-transform-inline-environment-variables": "^0.4.4",
+    "prettier": "^3.4.2",
     "np": "^10.2.0"
   },
   "dependencies": {
