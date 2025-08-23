@@ -1,4 +1,31 @@
-import axios, { type AxiosInstance } from 'axios';
+import axios, {type AxiosInstance} from 'axios';
+
+interface ConfigEvaluationSucceededEvent {
+    type: 'config.evaluation.succeeded';
+    data: {
+        response: EvaluationResponse;
+    };
+}
+
+interface ConfigEvaluationFailedEvent {
+    type: 'config.evaluation.failed';
+    data: {
+        error: unknown;
+    };
+}
+
+interface FlagEvaluationSucceededEvent {
+    type: 'flag.evaluation.succeeded';
+    data: {
+        environment_id: string;
+        flag_key: string;
+        enabled: boolean;
+    };
+}
+
+export type FecusioCoreEvent = ConfigEvaluationSucceededEvent | ConfigEvaluationFailedEvent | FlagEvaluationSucceededEvent;
+
+export type FecusioCoreEventHandler = (event: FecusioCoreEvent) => void;
 
 type EvaluationResponse = {
     data: {
@@ -8,10 +35,15 @@ type EvaluationResponse = {
             };
         }
     };
+    meta?: {
+        organization_id: string;
+        workspace_id: string;
+        environment_id: string;
+    }
 };
 
 type Cache = {
-    [key: string]: Evaluation;
+    [key: string]: FecusioCoreEvaluation;
 };
 
 interface IdentityReference {
@@ -25,21 +57,37 @@ interface Options {
     defaultIdentities?: (string | IdentityReference)[];
     baseURL?: string;
     timeout?: number;
+    eventHandler?: FecusioCoreEventHandler;
 }
 
-export class Evaluation {
+export class FecusioCoreEvaluation {
     private response: EvaluationResponse;
+    private eventHandler?: FecusioCoreEventHandler;
 
-    constructor(response: EvaluationResponse) {
+    constructor(response: EvaluationResponse, eventHandler?: FecusioCoreEventHandler) {
         this.response = response;
+        this.eventHandler = eventHandler;
     }
 
     public isFeatureEnabled(flag: string): boolean {
-        return this.response.data.flags[flag]?.enabled || false;
+        const isEnabled = this.response.data.flags[flag]?.enabled;
+
+        if (this.eventHandler && isEnabled !== undefined && this.response.meta) {
+            this.eventHandler({
+                type: 'flag.evaluation.succeeded',
+                data: {
+                    environment_id: this.response.meta.environment_id,
+                    flag_key: flag,
+                    enabled: isEnabled
+                }
+            });
+        }
+
+        return isEnabled || false;
     }
 
     public getAllFlags(): EvaluationResponse['data']['flags'] {
-        return { ...this.response.data.flags };
+        return {...this.response.data.flags};
     }
 }
 
@@ -49,6 +97,7 @@ export class FecusioCore {
     private defaultFlags: EvaluationResponse['data']['flags'];
     private defaultIdentities?: (string | IdentityReference)[];
     private cache: Cache = {};
+    private eventHandlers: FecusioCoreEventHandler[] = [];
 
     constructor(options: Options) {
         this.environmentKey = options.environmentKey;
@@ -64,6 +113,14 @@ export class FecusioCore {
                 Accept: 'application/json',
             },
         });
+
+        // Add default event handler for tracking flag evaluations
+        this.addEventListener(this.trackFlagEvaluation.bind(this));
+
+        // Add user-provided event handler
+        if (options.eventHandler) {
+            this.addEventListener(options.eventHandler);
+        }
     }
 
     public setDefaultIdentities(identities: (string | IdentityReference)[] | undefined): void {
@@ -84,7 +141,35 @@ export class FecusioCore {
         this.cache = {};
     }
 
-    public async evaluate(identities?: (string | IdentityReference)[], fresh: boolean = false): Promise<Evaluation> {
+    private addEventListener(handler: FecusioCoreEventHandler): void {
+        if (!this.eventHandlers.includes(handler)) {
+            this.eventHandlers.push(handler);
+        }
+    }
+
+    private notifyEventHandlers(event: FecusioCoreEvent): void {
+        for (const handler of this.eventHandlers) {
+            try {
+                handler(event);
+            } catch (error) {
+                console.error('Error in event handler:', error);
+            }
+        }
+    }
+
+    private trackFlagEvaluation(event: FecusioCoreEvent): void {
+        if (event.type === 'flag.evaluation.succeeded') {
+            this.api.post('/evaluations/track', {
+                environment_id: event.data.environment_id,
+                flag_key: event.data.flag_key,
+                enabled: event.data.enabled,
+            }).catch(error => {
+                console.error('Error tracking flag evaluation:', error);
+            });
+        }
+    }
+
+    public async evaluate(identities?: (string | IdentityReference)[], fresh: boolean = false): Promise<FecusioCoreEvaluation> {
         if (identities === undefined) {
             identities = this.defaultIdentities;
         }
@@ -96,23 +181,33 @@ export class FecusioCore {
         }
 
         try {
-            const response = await this.api.post<EvaluationResponse>('/evaluate', { 
+            const response = await this.api.post<EvaluationResponse>('/evaluate', {
                 identities: identities
             });
 
-            const evaluation = new Evaluation(response.data);
+            const evaluation = new FecusioCoreEvaluation(response.data, this.notifyEventHandlers.bind(this));
 
             this.cache[cacheKey] = evaluation;
+            
+            this.notifyEventHandlers({
+                type: 'config.evaluation.succeeded' as const,
+                data: {
+                    response: response.data
+                }
+            });
 
             return evaluation;
         } catch (error) {
-            console.error('Fecusio Core API request failed, using default flags', error);
+            this.notifyEventHandlers({
+                type: 'config.evaluation.failed' as const,
+                data: { error }
+            });
 
-            return new Evaluation({
+            return new FecusioCoreEvaluation({
                 data: {
                     flags: this.defaultFlags || {}
                 }
-            });
+            }, this.notifyEventHandlers.bind(this));
         }
     }
 }
