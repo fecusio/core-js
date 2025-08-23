@@ -99,6 +99,10 @@ export class FecusioCore {
     private cache: Cache = {};
     private eventHandlers: FecusioCoreEventHandler[] = [];
 
+    private trackingQueue: FlagEvaluationSucceededEvent[] = [];
+    private trackingTimeout: NodeJS.Timeout | null = null;
+    private readonly TRACKING_DEBOUNCE_MS = 2000;
+
     constructor(options: Options) {
         this.environmentKey = options.environmentKey;
         this.defaultFlags = options.defaultFlags || {};
@@ -159,14 +163,34 @@ export class FecusioCore {
 
     private trackFlagEvaluation(event: FecusioCoreEvent): void {
         if (event.type === 'flag.evaluation.succeeded') {
-            this.api.post('/evaluations/track', {
-                environment_id: event.data.environment_id,
-                flag_key: event.data.flag_key,
-                enabled: event.data.enabled,
-            }).catch(error => {
-                console.error('Error tracking flag evaluation:', error);
-            });
+            // Add the event data to the queue
+            this.trackingQueue.push(event);
+
+            // Set up debounced sending if not already scheduled
+            if (!this.trackingTimeout) {
+                this.trackingTimeout = setTimeout(() => {
+                    this.sendBatchedTrackingEvents();
+                }, this.TRACKING_DEBOUNCE_MS);
+            }
         }
+    }
+
+    private sendBatchedTrackingEvents(): void {
+        if (this.trackingQueue.length === 0) {
+            this.trackingTimeout = null;
+            return;
+        }
+
+        // Clone the queue and clear it immediately to avoid missing events
+        const eventsToSend = [...this.trackingQueue];
+        this.trackingQueue = [];
+        this.trackingTimeout = null;
+
+        this.api.post('/evaluations/track', {
+            events: eventsToSend
+        }).catch(error => {
+            console.error('Error tracking flag evaluations batch:', error);
+        });
     }
 
     public async evaluate(identities?: (string | IdentityReference)[], fresh: boolean = false): Promise<FecusioCoreEvaluation> {
