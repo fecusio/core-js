@@ -35,7 +35,7 @@ export class Evaluation {
     }
 
     public isFeatureEnabled(flag: string): boolean {
-        return this.response.data.flags[flag]?.enabled ?? false;
+        return this.response.data.flags[flag]?.enabled || false;
     }
 
     public getAllFlags(): EvaluationResponse['data']['flags'] {
