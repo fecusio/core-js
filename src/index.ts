@@ -17,8 +17,8 @@ interface ConfigEvaluationFailedEvent {
 interface FlagEvaluationSucceededEvent {
   type: "flag.evaluation.succeeded";
   data: {
-    environment_id: string;
-    flag_key: string;
+    environment_tracking_id: string;
+    flag_tracking_id: string;
     enabled: boolean;
   };
 }
@@ -35,13 +35,12 @@ type EvaluationResponse = {
     flags: {
       [flag: string]: {
         enabled: boolean;
+        tracking_id: string;
       };
     };
-  };
-  meta: {
-    organization_id: string;
-    workspace_id: string;
-    environment_id: string;
+    organization_tracking_id: string;
+    workspace_tracking_id: string;
+    environment_tracking_id: string;
   };
 };
 
@@ -91,13 +90,13 @@ export class FecusioCoreEvaluation {
     if (
       this.eventHandler &&
       isEnabled !== undefined &&
-      "meta" in this.response
+      "environment_tracking_id" in this.response.data
     ) {
       this.eventHandler({
         type: "flag.evaluation.succeeded",
         data: {
-          environment_id: this.response.meta.environment_id,
-          flag_key: flag,
+          environment_tracking_id: this.response.data.environment_tracking_id,
+          flag_tracking_id: flag,
           enabled: isEnabled,
         },
       });
@@ -106,7 +105,7 @@ export class FecusioCoreEvaluation {
     return isEnabled || false;
   }
 
-  public getAllFlags(): EvaluationResponse["data"]["flags"] {
+  public getAllFlags(): DefaultEvaluationResponse["data"]["flags"] {
     return { ...this.response.data.flags };
   }
 }
