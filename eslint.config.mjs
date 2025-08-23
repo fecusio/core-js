@@ -17,8 +17,8 @@ export default tseslint.config(
       // Enforce consistent indentation (2 spaces)
       'indent': ['error', 2],
 
-      // Enforce the use of single quotes for strings
-      'quotes': ['error', 'single', { 'avoidEscape': true }],
+      // Enforce the use of double quotes for strings
+      'quotes': ['error', 'double', { 'avoidEscape': true }],
 
       // Enforce semicolons at the end of statements
       'semi': ['error', 'always'],
