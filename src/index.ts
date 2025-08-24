@@ -1,49 +1,6 @@
 import axios, { type AxiosInstance } from "axios";
 
-interface EvaluationRetrievedEvent {
-  type: "evaluation.retrieved";
-  data: {
-    config: EvaluationResponse["data"];
-  };
-}
-
-interface EvaluationFailed {
-  type: "evaluation.failed";
-  data: {
-    error: unknown;
-  };
-}
-
-interface FlagEvaluatedEvent {
-  type: "flag.evaluated";
-  data: {
-    flag_tracking_id: string;
-    enabled: boolean;
-  };
-}
-
-export type FecusioCoreEvent =
-  | EvaluationRetrievedEvent
-  | EvaluationFailed
-  | FlagEvaluatedEvent;
-
-export type FecusioCoreEventHandler = (event: FecusioCoreEvent) => void;
-
 type EvaluationResponse = {
-  data: {
-    flags: {
-      [flag: string]: {
-        enabled: boolean;
-        tracking_id: string;
-      };
-    };
-    organization_tracking_id: string;
-    workspace_tracking_id: string;
-    environment_tracking_id: string;
-  };
-};
-
-type DefaultEvaluationResponse = {
   data: {
     flags: {
       [flag: string]: {
@@ -68,35 +25,17 @@ interface Options {
   defaultIdentities?: (string | IdentityReference)[];
   baseURL?: string;
   timeout?: number;
-  eventHandler?: FecusioCoreEventHandler;
 }
 
 export class FecusioCoreEvaluation {
-  private response: EvaluationResponse | DefaultEvaluationResponse;
-  private eventHandler?: FecusioCoreEventHandler;
+  private response: EvaluationResponse;
 
-  constructor(
-    response: EvaluationResponse | DefaultEvaluationResponse,
-    eventHandler?: FecusioCoreEventHandler,
-  ) {
+  constructor(response: EvaluationResponse) {
     this.response = response;
-    this.eventHandler = eventHandler;
   }
 
   public isFeatureEnabled(flag: string): boolean {
-    const responseFlag = this.response.data.flags[flag];
-
-    if (this.eventHandler && responseFlag && "tracking_id" in responseFlag) {
-      this.eventHandler({
-        type: "flag.evaluated",
-        data: {
-          flag_tracking_id: responseFlag.tracking_id,
-          enabled: responseFlag.enabled,
-        },
-      });
-    }
-
-    return responseFlag?.enabled || false;
+    return this.response.data.flags[flag]?.enabled || false;
   }
 }
 
@@ -106,11 +45,6 @@ export class FecusioCore {
   private defaultFlags: EvaluationResponse["data"]["flags"];
   private defaultIdentities?: (string | IdentityReference)[];
   private cache: Cache = {};
-  private eventHandlers: FecusioCoreEventHandler[] = [];
-
-  private trackingQueue: FlagEvaluatedEvent[] = [];
-  private trackingTimeout: NodeJS.Timeout | null = null;
-  private readonly TRACKING_DEBOUNCE_MS = 2000;
 
   constructor(options: Options) {
     this.environmentKey = options.environmentKey;
@@ -126,14 +60,6 @@ export class FecusioCore {
         Accept: "application/json",
       },
     });
-
-    // Add default event handler for tracking flag evaluations
-    this.addEventListener(this.trackFlagEvaluation.bind(this));
-
-    // Add user-provided event handler
-    if (options.eventHandler) {
-      this.addEventListener(options.eventHandler);
-    }
   }
 
   public setDefaultIdentities(
@@ -161,56 +87,6 @@ export class FecusioCore {
     this.cache = {};
   }
 
-  private addEventListener(handler: FecusioCoreEventHandler): void {
-    if (!this.eventHandlers.includes(handler)) {
-      this.eventHandlers.push(handler);
-    }
-  }
-
-  private notifyEventHandlers(event: FecusioCoreEvent): void {
-    for (const handler of this.eventHandlers) {
-      try {
-        handler(event);
-      } catch (error) {
-        console.error("Error in event handler:", error);
-      }
-    }
-  }
-
-  private trackFlagEvaluation(event: FecusioCoreEvent): void {
-    if (event.type === "flag.evaluated") {
-      // Add the event data to the queue
-      this.trackingQueue.push(event);
-
-      // Set up debounced sending if not already scheduled
-      if (!this.trackingTimeout) {
-        this.trackingTimeout = setTimeout(() => {
-          this.sendBatchedTrackingEvents();
-        }, this.TRACKING_DEBOUNCE_MS);
-      }
-    }
-  }
-
-  private sendBatchedTrackingEvents(): void {
-    if (this.trackingQueue.length === 0) {
-      this.trackingTimeout = null;
-      return;
-    }
-
-    // Clone the queue and clear it immediately to avoid missing events
-    const eventsToSend = [...this.trackingQueue];
-    this.trackingQueue = [];
-    this.trackingTimeout = null;
-
-    this.api
-      .post("/evaluations/track", {
-        events: eventsToSend,
-      })
-      .catch((error) => {
-        console.error("Error tracking flag evaluations batch:", error);
-      });
-  }
-
   public async evaluate(
     identities?: (string | IdentityReference)[],
     fresh: boolean = false,
@@ -230,35 +106,22 @@ export class FecusioCore {
         identities: identities,
       });
 
-      const evaluation = new FecusioCoreEvaluation(
-        response.data,
-        this.notifyEventHandlers.bind(this),
-      );
+      const evaluation = new FecusioCoreEvaluation(response.data);
 
       this.cache[cacheKey] = evaluation;
 
-      this.notifyEventHandlers({
-        type: "evaluation.retrieved" as const,
-        data: {
-          config: response.data.data,
-        },
-      });
-
       return evaluation;
     } catch (error) {
-      this.notifyEventHandlers({
-        type: "evaluation.failed" as const,
-        data: { error },
-      });
-
-      return new FecusioCoreEvaluation(
-        {
-          data: {
-            flags: this.defaultFlags || {},
-          },
-        },
-        this.notifyEventHandlers.bind(this),
+      console.error(
+        "Fecusio Core API request failed, using default flags",
+        error,
       );
+
+      return new FecusioCoreEvaluation({
+        data: {
+          flags: this.defaultFlags || {},
+        },
+      });
     }
   }
 }
