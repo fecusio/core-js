@@ -1,6 +1,6 @@
 {
   "name": "@fecusio/core-js",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "Fecusio Core API SDK",
   "type": "module",
   "main": "dist/index.cjs",
